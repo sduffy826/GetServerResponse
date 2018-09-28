@@ -1,0 +1,7 @@
+*.properties
+*.tar
+*.class
+.classpath
+.project
+.settings
+/target/
