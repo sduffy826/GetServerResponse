@@ -10,9 +10,10 @@ public class ShowSiteCertificates {
   public static void main(String[] args) {
     // TODO Auto-generated method stub
     try {
-//      URL destURL = new URL("https://ralbz001027.raleigh.ibm.com:9443/ibm/iis/launchpad/");
+      // URL destURL = new URL("https://ralbz001027.raleigh.ibm.com:9443/ibm/iis/launchpad/");
+      URL destURL = new URL("https://rsis.raleigh.ibm.com:9443/ibm/iis/launchpad/");
       // URL destURL = new URL("https://www.ibm.com");
-      URL destURL = new URL("https://ralbz001027.raleigh.ibm.com");
+      // URL destURL = new URL("https://ralbz001027.raleigh.ibm.com");
       HttpsURLConnection conn = (HttpsURLConnection) destURL.openConnection();
       conn.connect();
       Certificate[] certs = conn.getServerCertificates();

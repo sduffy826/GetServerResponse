@@ -29,25 +29,19 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Properties;
 
-public class HttpClientCheckServer {
-  private static final String PROPERTYFILE = "server.properties";
-
+public class HttpClientCheckEndPoint {
   private static String url_secured_by_basic_authentication;
   private static String userId;
   private static String password;
+  private static String postBody;
 
   private static boolean debugIt;
 
   private static Instant startInstant = null;
 
   // Constructor - init variables
-  public HttpClientCheckServer() {
-    Properties properties = PropertyHelper.getPropertyObject(PROPERTYFILE);
-    url_secured_by_basic_authentication = properties.getProperty("testUrl");
-    userId = properties.getProperty("testUser");
-    password = properties.getProperty("testPW");
-
-    debugIt = Boolean.parseBoolean(properties.getProperty("testUrl", "false"));
+  public HttpClientCheckEndPoint() {
+    // Nothing right now :)
   }
 
   private long getElapsedTimeInMilliseconds(boolean startIt) {
@@ -64,43 +58,60 @@ public class HttpClientCheckServer {
   // Mainline
   // ------------------------------------------------------------------
   public static void main(String[] args) {
-    int returnCode;
-    if (debugIt) System.out.println("This is a test");
+    int httpStatusCode;
+    
+    if (args.length < 4) {
+      System.out.println("Invalid arguments pass: url, userid, passwd, postBodyContent, (optional) debugValue");
+      System.exit(999);
+    }
 
-    HttpClientCheckServer me = new HttpClientCheckServer();
+    url_secured_by_basic_authentication = args[0];
+    userId   = args[1];
+    password = args[2];
+    postBody = args[3];
+    if (args.length > 4 && args[args.length-1].equals("true")) debugIt = true;
+    if (debugIt) { for (String arg: args) { System.out.println("arg: " + arg); } }
+    
+    HttpClientCheckEndPoint me = new HttpClientCheckEndPoint();
 
     if (debugIt) System.out.println("Before call");
     me.getElapsedTimeInMilliseconds(true);
 
-    returnCode = 98;
+    httpStatusCode = 998;
     try {
-      returnCode = (me.postRequestWithBasicAuthentication()) ? 0 : 99;
+      httpStatusCode = me.postRequestWithBasicAuthentication();      
     } catch (IOException e) {
       e.printStackTrace();
     }
     float secs = (float) ((float) me.getElapsedTimeInMilliseconds(false) / 1000.0);
     
-    System.out.println("Elapsed time: " + secs);
-    if (debugIt) System.out.println("After call");
-    System.exit(returnCode);
+    if (debugIt) System.out.println("Elapsed time: " + secs);
+    
+    if (httpStatusCode == 200) {
+      System.exit(0);  // all good
+    }
+    else {
+      me.sendErrorEmail(url_secured_by_basic_authentication, Integer.toString(httpStatusCode));
+      System.exit(4);
+    }
   }
 
   // -----------------------------------------------------------------------------
   // Post request to the server
   // -----------------------------------------------------------------------------
-  public final boolean postRequestWithBasicAuthentication() throws IOException {
-    boolean gotGoodResult = false;
+  public int postRequestWithBasicAuthentication() throws IOException {
+    int statusCode = 999;
     
     CloseableHttpClient client = HttpClientBuilder.create()
         .setDefaultCredentialsProvider(provider()).build();
-    if (debugIt)
-      System.out.println("url: " + url_secured_by_basic_authentication);
+    
+    if (debugIt) System.out.println("url: " + url_secured_by_basic_authentication);
 
     HttpPost httpPost = new HttpPost(url_secured_by_basic_authentication);
 
-    String jsonBody = "{ \"groupCode\": \"0000004245\" }";
+    // String jsonBody = "{ \"groupCode\": \"0000004245\" }";  Left here just to see format 
 
-    StringEntity entity = new StringEntity(jsonBody);
+    StringEntity entity = new StringEntity(postBody);
 
     httpPost.setEntity(entity);
     httpPost.setHeader("Accept", "application/json");
@@ -109,22 +120,22 @@ public class HttpClientCheckServer {
     CloseableHttpResponse response = client.execute(httpPost);
 
     if (debugIt)
-      System.out.println(
-          "Response status code: " + response.getStatusLine().getStatusCode()
-              + " response.toString(): " + response.toString());
-
-    BufferedReader reader = new BufferedReader(
-        new InputStreamReader(response.getEntity().getContent()));
+      System.out.println("Response status code: " + response.getStatusLine().getStatusCode()
+                       + " response.toString(): " + response.toString());
+    
+    statusCode = response.getStatusLine().getStatusCode();
+      
+    BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
 
     StringBuffer result = new StringBuffer();
     String line = "";
     while ((line = reader.readLine()) != null) {
       System.out.println(line);
       result.append(line);
-      gotGoodResult = true;
     }
+    reader.close();
     client.close();
-    return gotGoodResult;
+    return statusCode;
   }
 
   // --------------------------------------------------------------------------------------
@@ -134,12 +145,26 @@ public class HttpClientCheckServer {
     final CredentialsProvider provider = new BasicCredentialsProvider();
     final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(
         userId, password);
+    
     provider.setCredentials(AuthScope.ANY, credentials);
-    if (debugIt)
-      System.out.println("Userid: " + userId + " password: " + password);
-    if (debugIt)
-      System.out.println("credential provider: " + provider.toString());
+    
+    if (debugIt) System.out.println("Userid: " + userId + " password: " + password);
+    if (debugIt) System.out.println("credential provider: " + provider.toString());
 
     return provider;
   }
+  
+  private void sendErrorEmail(String _urlInError, String _responseCode) {    
+    if (debugIt) PropertyHelper.setDebugValue(true);
+    Properties properties = PropertyHelper.getPropertyObject("emailWhenProblem.properties");
+    
+    String emailPropertyFile = properties.getProperty("emailPropertyFile");
+    String targetEmail = properties.getProperty("destEmail","media3@us.ibm.com");
+    String subject = "Error with endpoint: " + _urlInError;
+    String body = "Status code: " + _responseCode + "\n\nCheck /seanduff/infosphere/checkWebServices" +
+                  "\nRun batch job with true parm to see debug info";
+        
+    SendTextEmail.sendEmail(emailPropertyFile, "", targetEmail, subject, body);
+  }
+  
 }

@@ -22,6 +22,8 @@ import org.apache.http.protocol.HttpContext;
 //import org.junit.Before;
 //import org.junit.Test;
 
+import com.corti.PropertyHelper;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -54,10 +56,9 @@ public class HttpClientAuthLiveTest {
     private static String url_secured_by_basic_authentication;     
     private static String userId;
     private static String password;
-    
-    
+        
     public HttpClientAuthLiveTest() {
-      Properties properties = PropertyHelper.getProperties(PROPERTYFILE);
+      Properties properties = PropertyHelper.getPropertyObject(PROPERTYFILE);
        
       prodUser = properties.getProperty("prodUser");
       prodPW   = properties.getProperty("prodPW");
